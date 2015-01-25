@@ -1,0 +1,17 @@
+{
+  "name": "twitter-statuses-stream-boilerplate",
+  "version": "0.0.1",
+  "description": "A template for accessing tweets from Twitter's Streaming API.",
+  "repository" : {
+    "type" : "git",
+    "url" : "http://github.com/mhgbrown/twitter-statuses-stream-boilerplate.git"
+  },
+  "engines": {
+    "node": "~0.10.30",
+    "npm": "1.4.x"
+  },
+  "dependencies": {
+    "commander": "1.0.2",
+    "twitter": "~1.0.0"
+  }
+}
