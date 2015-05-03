@@ -7,7 +7,7 @@
     "url" : "http://github.com/mhgbrown/twitter-statuses-stream-boilerplate.git"
   },
   "engines": {
-    "node": "~0.10.30",
+    "node": "^0.10.30",
     "npm": "1.4.x"
   },
   "dependencies": {
