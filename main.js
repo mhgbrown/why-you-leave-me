@@ -22,15 +22,10 @@ twitter.get('/account/verify_credentials', function(data) {
 
 });
 
-// Connect to the stream
-twitter.stream('statuses/sample', {}, function(stream) {
-  stream.on('data', function(data) {
-
-    if(opts.verbose) {
-      process.stdout.write(JSON.stringify(data) + "\n");
-    }
-
-  });
+twitter.stream('user', { 'with' : 'user' }, function(stream) {
+    stream.on('data', function(data) {
+        process.stdout.write("credentials: " + JSON.stringify(data));
+    });
 });
 
 // Handle exit signals

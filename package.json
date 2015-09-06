@@ -1,7 +1,7 @@
 {
-  "name": "twitter-statuses-stream-boilerplate",
+  "name": "Dinner's Ready Tweeter",
   "version": "0.0.1",
-  "description": "A template for accessing tweets from Twitter's Streaming API.",
+  "description": "A twitter bot that respond's to tweets with recipes",
   "repository" : {
     "type" : "git",
     "url" : "http://github.com/mhgbrown/twitter-statuses-stream-boilerplate.git"
