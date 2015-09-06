@@ -1,5 +1,5 @@
 {
-  "name": "Dinner's Ready Tweeter",
+  "name": "dinners-card-game-tweeter",
   "version": "0.0.1",
   "description": "A twitter bot that respond's to tweets with recipes",
   "repository" : {
