@@ -13,6 +13,22 @@ var twitter = new Twitter({
   access_token_secret: process.env.TWITTER_ACCESS_TOKEN_SECRET
 });
 
+var REPLY_SENTINEL = 'What should I have for dinner?';
+
+function isTweetForMe(data) {
+  return data['in_reply_to_screen_name'] && data['in_reply_to_screen_name'].indexOf("DinnerCardGame") >= 0;
+}
+
+function containsSentinel(data) {
+  var regex = new RegExp(REPLY_SENTINEL, 'i');
+  return regex.test(data['text']);
+}
+
+function constructTweet(userData) {
+  var userMention = '@' +  userData['screen_name'];
+  return userMention + ' We\'ll have an answer for you soon!';
+}
+
 // Verify the credentials
 twitter.get('/account/verify_credentials', function(data) {
 
@@ -24,7 +40,20 @@ twitter.get('/account/verify_credentials', function(data) {
 
 twitter.stream('user', { 'with' : 'user' }, function(stream) {
     stream.on('data', function(data) {
-        process.stdout.write("credentials: " + JSON.stringify(data));
+
+        if(opts.verbose) {
+          process.stdout.write("stream data: " + JSON.stringify(data));
+        }
+
+        if(isTweetForMe(data) && containsSentinel(data)) {
+          var tweet = constructTweet(data['user']);
+
+          twitter.post('/statuses/update', { 'status' : tweet }, function(data) {
+            if(opts.verbose) {
+              process.stdout.write("tweet data: " + JSON.stringify(data));
+            }
+          });
+        }
     });
 });
 
