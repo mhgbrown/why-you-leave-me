@@ -13,6 +13,17 @@ var twitter = new Twitter({
   access_token_secret: process.env.TWITTER_ACCESS_TOKEN_SECRET
 });
 
+// IDEA use google sheets as the database
+// as you make tweets, map URLs to rows in google sheets
+
+var RECIPES = [
+  {
+    url: 'http://www.cookinglight.com/food/quick-healthy/5-ingredient-pantry-recipes/simple-seared-scallops',
+    name: 'Quinoa and Potato Croquettes',
+    ingredients: ['BREAD', 'QUINOA', 'POTATOES']
+  }
+];
+
 var SCREEN_NAME = 'DinnerCardGame',
   KICKSTARTER_URL = 'https://www.kickstarter.com/projects',
   REPLY_SENTINEL = 'What should I have for dinner?';
@@ -29,13 +40,13 @@ function containsSentinel(data) {
 function constructRecipeTweet(userData) {
   var userMention = '@' +  userData['screen_name'];
   // TODO link to recipe
-  return userMention + ' We\'ll have an answer for you soon!';
+  return [userMention, RECIPES[0].name, RECIPES[0].url].join(' ');
 }
 
 function constructIngredientTweet(userData) {
   var userMention = '@' +  userData['screen_name'];
   // TODO first three ingredients of recipe and kickstarter link
-  return [userMention, 'tomatoes', KICKSTARTER_URL].join('\n');
+  return [userMention].concat(RECIPES[0].ingredients).push(KICKSTARTER_URL).join('\n');
 }
 
 // Verify the credentials
