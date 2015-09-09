@@ -44,9 +44,12 @@ function constructRecipeTweet(userData) {
 }
 
 function constructIngredientTweet(userData) {
-  var userMention = '@' +  userData['screen_name'];
+  var userMention = '@' +  userData['screen_name'],
+    preTweet = [userMention].concat(RECIPES[0].ingredients);
+
+  preTweet.push(KICKSTARTER_URL);
   // TODO first three ingredients of recipe and kickstarter link
-  return [userMention].concat(RECIPES[0].ingredients).push(KICKSTARTER_URL).join('\n');
+  return preTweet.join('\n');
 }
 
 // Verify the credentials
@@ -58,52 +61,48 @@ twitter.get('/account/verify_credentials', function(data) {
 
 // process user stream events, in particular, mentions of us
 twitter.stream('user', { 'with' : 'user' }, function(stream) {
-  stream.on('data', function(data) {
+  stream.on('data', function(streamData) {
 
     if(opts.verbose) {
-      console.log('user stream data: ' + JSON.stringify(data));
+      console.log('user stream data: ' + JSON.stringify(streamData));
     }
 
     // if the tweet isn't for me, we don't care
-    if(!isTweetForMe(data)) {
+    if(!isTweetForMe(streamData)) {
       return;
     }
 
     // if they are asking about what to eat for dinner, give them
     // a recipe link
-    if(containsSentinel(data)) {
-      var tweet = constructRecipeTweet(data['user']);
+    if(containsSentinel(streamData)) {
+      var tweet = constructRecipeTweet(streamData['user']);
 
-      twitter.post('/statuses/update', { 'status' : tweet }, function(data) {
+      twitter.post('/statuses/update', { 'status' : tweet }, function(tweetData) {
         if(opts.verbose) {
-          console.log('tweet data: ' + JSON.stringify(data));
+          console.log('recipe tweet data: ' + JSON.stringify(tweetData));
         }
       });
-    } else if(data['in_reply_to_status_id_str'] !== null) {
-      twitter.get('/statuses/show/' + data['in_reply_to_status_id_str'], {}, function(data) {
+    // if they are replying to a recipe link, give them the first 3 ingredients
+    // and a link to the project's kickstarter
+    } else if(streamData['in_reply_to_status_id_str'] !== null) {
+      twitter.get('/statuses/show', { id: streamData['in_reply_to_status_id_str'] }, function(_parseBug, receivedTweetData) {
+
+        if(opts.verbose) {
+          console.log('received tweet data: ' + JSON.stringify(receivedTweetData));
+        }
 
         // TODO refine search for recipe url
-        if(data['text'].indexOf('http') >= 0) {
-          var tweet = constructIngredientTweet(data['user']);
-          twitter.post('/statuses/update', { 'status' : tweet }, function(data) {
+        if(receivedTweetData['text'].indexOf('http') >= 0) {
+          var tweet = constructIngredientTweet(streamData['user']);
+
+          twitter.post('/statuses/update', { 'status' : tweet }, function(updateTweetData) {
             if(opts.verbose) {
-              console.log('tweet data: ' + JSON.stringify(data));
+              console.log('ingredient tweet data: ' + JSON.stringify(updateTweetData));
             }
           });
-
         }
       });
     }
-
-    // if they are replying to a recipe link, give them the first 3 ingredients
-    // and a link to the project's kickstarter
-
-    // if in_reply_to_status_id_str is not null
-    // we have to make sure that its not a reply to a recipe tweet
-    // get that tweet referenced in in_reply_to_status_id_str and check
-    // that it has a recipe link in its
-    //
-    // If it does have a link tweet the first 3 ingredients and a link to their kickstarter page
   });
 });
 
