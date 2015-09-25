@@ -7,7 +7,7 @@ var Twitter = require('twitter'),  // Twitter API wrapper: https://github.com/jd
   .parse(process.argv);
 
 var SCREEN_NAME = 'DinnerCardGame',
-  KICKSTARTER_URL = 'https://www.kickstarter.com/projects',
+  KICKSTARTER_URL = 'http://dinnersreadygame.com/',
   REPLY_SENTINEL = 'What should I have for dinner?',
   RECIPE_SHEET_ID = '1XLmKJCayaLHlBMWFF91qZ9R3Ch3ZBH09X0esmp7xGtc',
   UPDATE_RECIPES_INTERVAL = 60000;
@@ -63,6 +63,7 @@ function constructIngredientTweet(userData, recipe) {
     preTweet = [userMention].concat(recipe.ingredients.slice(0, 3));
 
   // TODO real kickstarter link
+  preTweet.push('& more!');
   preTweet.push(KICKSTARTER_URL);
   return preTweet.join('\n');
 }
