@@ -29,8 +29,8 @@ var RECIPE_SHEET = new GoogleSpreadsheet(RECIPE_SHEET_ID);
 
 // always have one recipe here so we have something to work with
 var recipes = {
-  'http://www.epicurious.com/recipes/food/views/wild-rice-apple-and-dried-cranberry-stuffing-108759': {
-    name: 'Wild Rice Stuffing',
+  'Wild Rice Stuffing': {
+    url: 'http://www.epicurious.com/recipes/food/views/wild-rice-apple-and-dried-cranberry-stuffing-108759',
     ingredients: [
       '1 cup wild rice',
       '1/2 lb white bread',
@@ -55,7 +55,7 @@ function constructRecipeTweet(userData) {
   var userMention = '@' +  userData['screen_name'],
     recipeInfo = randomRecipe();
 
-  return [userMention, recipeInfo[1].name, recipeInfo[0]].join(' ');
+  return [userMention, recipeInfo[0]].join(' ');
 }
 
 function constructIngredientTweet(userData, recipe) {
@@ -75,8 +75,9 @@ function randomRecipe() {
 }
 
 function containsRecipe(tweetData) {
-  var urls = tweetData.entities.urls;
-  return urls && urls.length && recipes[urls[0]['expanded_url']];
+  var mentions = tweetData.entities.user_mentions;
+
+  return mentions && mentions.length && recipes[tweetData.text.slice(mentions[0].indices[1]).trim()];
 }
 
 function updateRecipes() {
@@ -101,10 +102,9 @@ function updateRecipes() {
           }
 
           rows.forEach(function(recipeRow) {
-            if(recipeRow.recipename && recipeRow.recipename.length &&
-              recipeRow.link && recipeRow.link.length && recipeRow.link.indexOf('http') > -1) {
-              recipes[recipeRow.link] = {
-                name: recipeRow.recipename,
+            if(recipeRow.recipename && recipeRow.recipename.length) {
+              recipes[recipeRow.recipename] = {
+                url: recipeRow.link,
                 ingredients: recipeRow.ingredients.split('\n')
               };
             }
