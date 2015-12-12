@@ -26,7 +26,7 @@ var TWITTER_CREDS = {
 var TWITTER = new Twitter(TWITTER_CREDS);
 var FEEDBACK_SHEET = new GoogleSpreadsheet(FEEDBACK_SHEET_ID);
 
-var CHECK_FOLLOWERS_INTERVAL = 60000;
+var CHECK_FOLLOWERS_INTERVAL = 120000;
 var ELICITING_QUESTION = 'thanks for following! Could I ask why you unfollowed?';
 var BOT_APPENDAGE = '[bot produced: https://github.com/mhgbrown/why-you-leave-me]';
 
