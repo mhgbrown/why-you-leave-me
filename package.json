@@ -1,11 +1,12 @@
 {
-  "name": "dinners-card-game-tweeter",
+  "name": "why-you-leave-me",
   "version": "0.0.1",
-  "description": "A twitter bot that respond's to tweets with recipes",
+  "description": "A Twitter bot that elicits feedback from an unfollower",
   "repository" : {
     "type" : "git",
-    "url" : "http://github.com/mhgbrown/dinners-card-game-tweeter.git"
+    "url" : "http://github.com/mhgbrown/why-you-leave-me.git"
   },
+  "license": "MIT",
   "engines": {
     "node": "^0.10.30",
     "npm": "1.4.x"
@@ -13,6 +14,7 @@
   "dependencies": {
     "commander": "^2.0.0",
     "twitter": "^1.0.0",
-    "google-spreadsheet": "^1.0.0"
+    "google-spreadsheet": "^1.0.0",
+    "lodash": "^3.10.1"
   }
 }

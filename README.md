@@ -1,5 +1,5 @@
-# Twitter Statuses Stream Boilerplate
-A simple node script that demonstrates connecting to Twitter's Streaming API for statuses (aka tweets). It also lends itself to easy deployment on [Heroku](https://www.heroku.com/).
+# Why You Leave Me?
+A Twitter bot that elicits feedback from unfollowers and saves it in a Google Sheet. It lends itself to easy deployment on [Heroku](https://www.heroku.com/).
 
 ## Requirements
 You must have [Node.js and npm installed](http://nodejs.org/).
@@ -10,5 +10,6 @@ These steps are Mac OS X oriented, but they should be similar for other platform
 1. ```npm install``` (install dependencies)
 2. ```cp .env.example .env``` (make a real .env)
 3. [Create a new "App"](https://apps.twitter.com/) and copy your credentials into .env
-3. ```source .env``` (load the twitter credentials into your environment)
-4. ```node main.js -v``` (let the tweets flow!)
+4. [Follow these instructions](https://github.com/theoephraim/node-google-spreadsheet#service-account-recommended-method) to set up the Google Sheet
+5. ```source .env``` (load the twitter credentials into your environment)
+6. ```node main.js -v``` (Wait for feedback...)

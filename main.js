@@ -1,139 +1,161 @@
-var Twitter = require('twitter'),  // Twitter API wrapper: https://github.com/jdub/node-twitter
-  opts = require('commander'), // Parse command line arguments
-  GoogleSpreadsheet = require("google-spreadsheet");
+#!/usr/bin/env node
+
+var _ = require('lodash'),
+  Twitter = require('twitter'),
+  opts = require('commander'),
+  GoogleSpreadsheet = require('google-spreadsheet');
 
   opts.version('0.0.1')
   .option('-v, --verbose', 'Log some debug info to the console')
   .parse(process.argv);
 
-var SCREEN_NAME = 'DinnerCardGame',
-  KICKSTARTER_URL = 'http://dinnersreadygame.com/',
-  REPLY_SENTINEL = 'What should I have for dinner?',
-  RECIPE_SHEET_ID = '1XLmKJCayaLHlBMWFF91qZ9R3Ch3ZBH09X0esmp7xGtc',
-  UPDATE_RECIPES_INTERVAL = 60000;
+var FEEDBACK_SHEET_ID = process.env.FEEDBACK_SHEET_ID;
 
 var GOOGLE_CREDS = {
   client_email: process.env.GOOGLE_SERVICE_CLIENT_EMAIL,
   private_key: process.env.GOOGLE_SERVICE_PRIVATE_KEY
 };
 
-// Initialize Twitter API keys
-var twitter = new Twitter({
+var TWITTER_CREDS = {
   consumer_key: process.env.TWITTER_CONSUMER_KEY,
   consumer_secret: process.env.TWITTER_CONSUMER_SECRET,
   access_token_key: process.env.TWITTER_ACCESS_TOKEN_KEY,
   access_token_secret: process.env.TWITTER_ACCESS_TOKEN_SECRET
-});
-
-var RECIPE_SHEET = new GoogleSpreadsheet(RECIPE_SHEET_ID);
-
-// always have one recipe here so we have something to work with
-var recipes = {
-  'Wild Rice Stuffing': {
-    url: 'http://www.epicurious.com/recipes/food/views/wild-rice-apple-and-dried-cranberry-stuffing-108759',
-    ingredients: [
-      '1 cup wild rice',
-      '1/2 lb white bread',
-      '1 stick butter',
-      '2 cups onion',
-      '2 cups celery',
-      '2 cups apple'
-    ]
-  }
 };
 
-function isTweetForMe(data) {
-  return data['in_reply_to_screen_name'] && data['in_reply_to_screen_name'].indexOf(SCREEN_NAME) >= 0;
-}
+var TWITTER = new Twitter(TWITTER_CREDS);
+var FEEDBACK_SHEET = new GoogleSpreadsheet(FEEDBACK_SHEET_ID);
 
-function containsSentinel(data) {
-  var regex = new RegExp(REPLY_SENTINEL, 'i');
-  return regex.test(data['text']);
-}
+var CHECK_FOLLOWERS_INTERVAL = 60000;
+var ELICITING_QUESTION = 'thanks for following! Could I ask why you unfollowed?';
+var BOT_APPENDAGE = '[bot produced: https://github.com/mhgbrown/why-you-leave-me]';
 
-function constructRecipeTweet(userData) {
-  var userMention = '@' +  userData['screen_name'],
-    recipeInfo = randomRecipe();
+var account;
+var followers = [];
 
-  return [userMention, recipeInfo[0]].join(' ');
-}
-
-function constructIngredientTweet(userData, recipe) {
-  var userMention = '@' +  userData['screen_name'],
-    preTweet = [userMention].concat(recipe.ingredients.slice(0, 3));
-
-  // TODO real kickstarter link
-  preTweet.push('& more!');
-  preTweet.push(KICKSTARTER_URL);
-  return preTweet.join('\n');
-}
-
-function randomRecipe() {
-    var keys = Object.keys(recipes),
-      key = keys[ keys.length * Math.random() << 0];
-    return [key, recipes[key]];
-}
-
-function containsRecipe(tweetData) {
-  var mentions = tweetData.entities.user_mentions;
-
-  return mentions && mentions.length && recipes[tweetData.text.slice(mentions[0].indices[1]).trim()];
-}
-
-function updateRecipes() {
-  console.log('Updating recipes...');
+function saveFeedback(tweetData) {
+  console.log('Saving feedback...');
   try {
-    RECIPE_SHEET.useServiceAccountAuth(GOOGLE_CREDS, function(authError) {
+    FEEDBACK_SHEET.useServiceAccountAuth(GOOGLE_CREDS, function(authError) {
       if(authError) {
         throw authError;
       }
 
-      RECIPE_SHEET.getInfo(function(sheetInfoError, sheetInfo) {
+      FEEDBACK_SHEET.addRow(1, {
+        'username': tweetData.user.screen_name,
+        'userid': tweetData.user.id_str,
+        'name': tweetData.user.name,
+        'location': tweetData.user.location,
+        'url': tweetData.user.url,
+        'description': tweetData.user.description,
+        'followers': tweetData.user.followers_count,
+        'date': tweetData.created_at,
+        'feedback': tweetData.text,
+        'myfollowers': followers.length + ''
+      });
+
+      console.log('Successfully saved feedback');
+      if(!opts.verbose) {
+        return;
+      }
+
+      FEEDBACK_SHEET.getInfo(function(sheetInfoError, sheetInfo) {
         if(sheetInfoError) {
           throw sheetInfoError;
         }
 
         // FIXME hopefully this worksheet exists
         var sheet1 = sheetInfo.worksheets[0];
-
         sheet1.getRows(function(rowsError, rows) {
           if(rowsError) {
             throw rowsError;
           }
 
-          rows.forEach(function(recipeRow) {
-            if(recipeRow.recipename && recipeRow.recipename.length) {
-              recipes[recipeRow.recipename] = {
-                url: recipeRow.link,
-                ingredients: recipeRow.ingredients.split('\n')
-              };
-            }
+          rows.forEach(function(row) {
+            console.log('row: ' + JSON.stringify(row))
           });
-          console.log("Successfully updated " + Object.keys(recipes).length + " recipes");
         });
       });
     });
 
   } catch(error) {
-    console.error('Failed to update recipes: ');
+    console.error('Failed to save feedback!');
     console.error(error);
   }
 }
 
-// get those recipes updated
-updateRecipes();
-setInterval(updateRecipes, UPDATE_RECIPES_INTERVAL);
+function isTweetForMe(data) {
+  return data.in_reply_to_screen_name && data.in_reply_to_screen_name.indexOf(account.screen_name) >= 0;
+}
 
+function composeQuestion(user) {
+  return ['@' + user.screen_name, ELICITING_QUESTION, BOT_APPENDAGE].join(' ');
+}
+
+function elicitFeedback(user) {
+  TWITTER.post('statuses/update', { 'status':  composeQuestion(user) }, function(error, tweet, response) {
+    if(error) return console.error(error);
+
+    if(opts.verbose) {
+      console.log('elicit feedback: ' + JSON.stringify(response));
+    }
+    // that's it! Now we wait...
+  });
+}
+
+function checkFollowers() {
+  // FIXME if this is > 5000, need to start paginating
+  TWITTER.get('followers/ids', { 'stringify_ids': true }, function(error, data, response) {
+    if(error) return console.error(error);
+
+    if(opts.verbose) {
+      console.log('check followers: ' + JSON.stringify(response));
+    }
+
+    var followerIds = data.ids;
+    var difference = _.difference(followers, followerIds);
+    followers = followerIds;
+    // difference gives me exactly those people which are not found
+    // in my new list of followers, aka the people who left me :(
+    if(!difference.length) {
+      return;
+    }
+
+    console.log('eliciting feedback...')
+    TWITTER.get('users/lookup', { 'user_id': difference.join(',') }, function(error, data, response) {
+      if(error) return console.error(error);
+
+      _.each(data, function(user) {
+        elicitFeedback(user);
+      });
+    });
+  });
+}
 
 // Verify the credentials
-twitter.get('/account/verify_credentials', function(data) {
+TWITTER.get('/account/verify_credentials', function(error, data, response) {
+  if(error) return console.error(error);
+
   if(opts.verbose) {
     console.log('credentials: ' + JSON.stringify(data));
   }
+
+  account = data;
+});
+
+// Set followers for the first time
+TWITTER.get('followers/ids', { 'stringify_ids': true }, function(error, data, response) {
+  if(error) return console.error(error);
+
+  if(opts.verbose) {
+    console.log('follower ids: ' + JSON.stringify(data));
+  }
+
+  followers = data.ids;
 });
 
 // process user stream events, in particular, mentions of us
-twitter.stream('user', { 'with' : 'user' }, function(stream) {
+TWITTER.stream('user', { 'with': 'user' }, function(stream) {
   stream.on('data', function(streamData) {
 
     if(opts.verbose) {
@@ -145,40 +167,33 @@ twitter.stream('user', { 'with' : 'user' }, function(stream) {
       return;
     }
 
-    // if they are asking about what to eat for dinner, give them
-    // a recipe link
-    if(containsSentinel(streamData)) {
-      var tweet = constructRecipeTweet(streamData['user']);
-
-      twitter.post('/statuses/update', { 'status' : tweet }, function(tweetData) {
-        if(opts.verbose) {
-          console.log('recipe tweet data: ' + JSON.stringify(tweetData));
-        }
-      });
-    // if they are replying to a recipe link, give them the first 3 ingredients
-    // and a link to the project's kickstarter
-    } else if(streamData['in_reply_to_status_id_str'] !== null) {
-      twitter.get('/statuses/show', { id: streamData['in_reply_to_status_id_str'] }, function(_parseBug, receivedTweetData) {
-
-        if(opts.verbose) {
-          console.log('received tweet data: ' + JSON.stringify(receivedTweetData));
-        }
-
-        var containedRecipe = containsRecipe(receivedTweetData);
-
-        if(containedRecipe) {
-          var tweet = constructIngredientTweet(streamData['user'], containedRecipe);
-
-          twitter.post('/statuses/update', { 'status' : tweet }, function(updateTweetData) {
-            if(opts.verbose) {
-              console.log('ingredient tweet data: ' + JSON.stringify(updateTweetData));
-            }
-          });
-        }
-      });
+    // if it's not in reply to another status (the eliciting status),
+    // then we don't care
+    if(!streamData.in_reply_to_status_id_str) {
+      return;
     }
+
+    // check to see if the tweet they replied to was the one with the eliciting
+    // question
+    TWITTER.get('/statuses/show', { id: streamData.in_reply_to_status_id_str }, function(error, tweetData, reponse) {
+      if(error) return console.error(error);
+
+      if(opts.verbose) {
+        console.log('reply tweet data: ' + JSON.stringify(streamData));
+      }
+
+      if(tweetData.text.indexOf(ELICITING_QUESTION) > -1) {
+        saveFeedback(streamData);
+      }
+    });
+  });
+
+  stream.on('error', function(error) {
+    console.error(error);
   });
 });
+
+setInterval(checkFollowers, CHECK_FOLLOWERS_INTERVAL);
 
 // Handle exit signals
 process.on('SIGINT', function(){
