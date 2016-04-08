@@ -28,7 +28,7 @@ var FEEDBACK_SHEET = new GoogleSpreadsheet(FEEDBACK_SHEET_ID);
 
 var CHECK_FOLLOWERS_INTERVAL = 120000;
 var ELICITING_QUESTION = 'Why you leave me?';
-var BOT_APPENDAGE = '??';
+var BOT_APPENDAGE = '';
 
 var account;
 var followers = [];
